@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+
+parse_server_config() {
+  local server_config="$1"
+
+  IFS='|' read -r key name ip port conn_type user pswd gcp_project gcp_zone gcp_vm_name comment <<< "$server_config"
+
+  key=$(echo "$key" | xargs)
+  padding_name="$name"
+  name=$(echo "$name" | xargs)
+  ip=$(echo "$ip" | xargs)
+  port=$(echo "$port" | xargs)
+  conn_type=$(echo "$conn_type" | xargs)
+  user=$(echo "$user" | xargs)
+  pswd=$(echo "$pswd" | xargs)
+  gcp_project=$(echo "$gcp_project" | xargs)
+  gcp_zone=$(echo "$gcp_zone" | xargs)
+  gcp_vm_name=$(echo "$gcp_vm_name" | xargs)
+
+  if [[ "$port" == '22' || -z "$port" ]]; then
+    address="$ip"
+  else
+    address="$ip:$port"
+  fi
+
+  echo "$key|$name|$padding_name|$ip|$port|$address|$conn_type|$user|$pswd|$gcp_project|$gcp_zone|$gcp_vm_name|$comment"
+}
+
+find_server_config() {
+  local search_key="$1"
+
+  for server in "${servers[@]}"; do
+    server_config=$(parse_server_config "$server")
+    IFS='|' read -r key name padding_name ip port address conn_type user pswd gcp_project gcp_zone gcp_vm_name comment <<< "$server_config"
+
+    if [[ "$key" == "$search_key" ]]; then
+      echo "$server"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+show_menu() {
+  msg='Choose one server from below as the target:'
+  echo -e "\033[01m$msg\033[0m"
+  echo ''
+
+  local menu=''
+
+  for server in "${servers[@]}"; do
+    server_config=$(parse_server_config "$server")
+    IFS='|' read -r key name padding_name ip port address conn_type user pswd gcp_project gcp_zone gcp_vm_name comment <<< "$server_config"
+
+    key=$(printf '%-4s' "$key")
+    address=$(printf '%-19s' "$address")
+
+    menu+="$key  \033[33;1m$padding_name\033[0m  \033[32;1m$address  \033[34;1m$comment\033[0m\n"
+  done
+
+  echo -e "$menu"
+}
+
+connect_server() {
+  local route=$1
+  local server_config
+
+  server_config=$(find_server_config "$route")
+
+  if [[ $? -eq 0 && -n "$server_config" ]]; then
+    server_config=$(parse_server_config "$server_config")
+    IFS='|' read -r key name padding_name ip port address conn_type user pswd gcp_project gcp_zone gcp_vm_name comment <<< "$server_config"
+
+    msg='You chose'
+    echo -e "\033[31m\033[01m$msg\033[0m \033[33;1m$name\033[0m \033[32;1m$address\033[0m"
+
+    if [[ "$conn_type" == 'password' ]]; then
+      script="$dir/sshexp"
+      command="expect $script $ip $user $pswd $port"
+    elif [[ "$conn_type" == 'gcp' ]]; then
+      command="gcloud compute ssh --project=$gcp_project --zone=$gcp_zone $user@$gcp_vm_name"
+    fi
+
+    $command
+  else
+    msg='Invalid option:'
+    echo -e "$msg \033[31m\033[01m$route\033[0m"
+    exit 0
+  fi
+}

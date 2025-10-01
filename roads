@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+
+dir="$(dirname "$0")"
+
+if [ -f "$dir/servers" ]; then
+  source "$dir/servers"
+else
+  msg="Server configuration file not found"
+  echo -e "\033[31m\033[01m$msg\033[0m"
+  exit 1
+fi
+
+source "$dir/library"
+
+show_menu
+
+if [ "$#" -lt 1 ]; then
+  read route
+else
+  route=$1
+fi
+
+connect_server "$route"

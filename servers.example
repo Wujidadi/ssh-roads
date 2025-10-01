@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+dir="$(dirname "$0")"
+
+if [ -f "$dir/.env" ]; then
+  source "$dir/.env"
+else
+  msg='.env file not found'
+  echo -e "\033[31m\033[01m$msg\033[0m"
+  exit 1
+fi
+
+servers=(
+  "<key>|<name>|<ip>|<port>|<conn_type>|${USER}<user>|${PSWD}<pswd>|<gcp_project>|<gcp_zone>|<gcp_vm_name>|<comment>" # 1st server
+  '...' # 2nd server
+  '...' # other servers
+)
